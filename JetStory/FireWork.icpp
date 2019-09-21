@@ -1,0 +1,92 @@
+#include "JetStory.h"
+
+struct FireMissile2 : Enemy {
+	virtual void SerializeKind(Stream& s) {}
+	virtual void Do() {
+		if(Move() || distance > 1500 || Random(150) == 0)
+			shield = 0;
+		if(Random(5) == 0) {
+			Debris& d = debris.Add();
+			d.pos = pos;
+			d.sz = Size(1, 1);
+			d.start = GameTick();
+			d.end = d.start + 3 + Random(50);
+			d.gravity = 0;
+		}
+	}
+
+	FireMissile2() { image = JetStoryImg::fragment(); Missile(); damage = 7; }
+};
+
+REGISTER_(FireMissile2);
+
+struct FireMissile : Enemy {
+	Pointf ep;
+
+	virtual void SerializeKind(Stream& s) { s % ep; }
+
+	virtual void Do() {
+		if(Move(GetSize(), 0, 0, 0) || distance > 1500)
+			shield = 0;
+		else {
+			Debris& d = debris.Add();
+			d.pos = pos;
+			d.sz = Size(1, 1);
+			d.start = GameTick();
+			d.end = d.start + 8 + Random(20);
+			d.speed = 2 * Pointf(Randomf() - 0.5, Randomf() - 0.5);
+			
+			if(Distance(pos, ep) < 10) {
+				Beep(3, "174.61:L50V100R38:V90:V150D42S0B::", 100, Random(50) + 325);
+				int n = Random(20) + 20;
+				while(n--) {
+					FireMissile2& m = enemy.Create<FireMissile2>();
+					m.pos = pos;
+					m.speed = 2 * Pointf(Randomf() - 0.5, Randomf() - 0.5) + speed;
+					NotQuiet();
+				}
+				shield = 0;
+			}
+		}
+	}
+
+	FireMissile() { image = JetStoryImg::firemissile(); Missile(); damage = 25; }
+};
+
+REGISTER_(FireMissile);
+
+void FireFireWork(Pointf pos, double speed)
+{
+	NotQuiet();
+	FireMissile& m = enemy.Create<FireMissile>();
+	m.pos = pos;
+	m.pos.y -= 7;
+	m.ep = ship.pos + 60 * Pointf(Randomf() - 0.5, Randomf() - 0.5);
+	m.speed = speed * Polar(Bearing(m.ep - pos));
+}
+
+void FireWork::Paint(Point sp)
+{
+	Enemy::Paint(sp);
+	if(flash)
+		DrawImage(sp.x, sp.y, flash / 100.0f, JetStoryImg::FireFlash());
+}
+
+void FireWork::Do()
+{
+	if(flash)
+		flash--;
+	if(Random(300) == 0 && enemy.GetCount() < ENEMY_LIMIT && distance < 1200 && CanSee()) {
+		Beep(3, "261.62:L50V100A80R30:V100B:V120D50S0N::", 100, Random(50) + 325);
+		FireFireWork(pos + Sizef(0, -7));
+		flash = 100;
+	}
+}
+
+FireWork::FireWork()
+{
+	image = JetStoryImg::FireWork(); shield = explosion_size = 10; z = 1; damage = 50; flash = 0;
+}
+
+
+REGISTER(FireWork);

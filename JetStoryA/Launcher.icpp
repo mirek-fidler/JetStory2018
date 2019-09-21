@@ -1,0 +1,67 @@
+#include "JetStory.h"
+
+struct LauncherMissile : Enemy {
+	int tick0;
+
+	virtual void SerializeKind(Stream& s) { s % tick0; }
+
+	virtual void Do() {
+		speed.y -= 0.02;
+		bool b = Move();
+		if(b || distance > 2000 || GameTick() - tick0 > 2000) {
+			shield = 0;
+			if(b)
+				Explosion(pos, 20);
+		}
+		image = JetStoryImg::Get(JetStoryImg::I_Miss0 + ((GameTick() / 20) & 3));
+	};
+	LauncherMissile() {
+		image = JetStoryImg::Miss0(); shield = 10; explosion_size = 50; damage = 80;
+	}
+};
+
+REGISTER_(LauncherMissile);
+
+void Launcher::Paint(Point sp)
+{
+	if(launch) {
+		Image m = JetStoryImg::Miss0();
+		Size off = (image.GetSize() - m.GetSize()) / 2;
+		DrawImage(sp.x + off.cx, sp.y + off.cy, m);
+	}
+	DrawImage(sp.x, sp.y, image, image_flags);
+}
+
+void Launcher::Do()
+{
+	if(phase == 0 && ship.pos.y < pos.y && distance < 500 && abs(ship.pos.x - pos.x) < distance && Random(100) == 0 && CanSee()) {
+		launch = true;
+		tick0 = GameTick();
+	}
+
+	if(phase == 4 && launch) {
+		Beep(3, "600:L300V100A90R38:V120B:V140D70S0N::");
+		LauncherMissile& m = enemy.Create<LauncherMissile>();
+		m.pos = pos;
+		m.pos.y -= 8;
+		m.tick0 = GameTick();
+		launch = false;
+		NotQuiet();
+	}
+
+	if(AniTick(10)) {
+		if(launch)
+			phase = min(phase + 1, 4);
+		else
+			phase = max(phase - 1, 0);
+	}
+	
+	image = JetStoryImg::Get(JetStoryImg::I_Launcher0 + phase);
+}
+
+Launcher::Launcher()
+{
+	image = JetStoryImg::Launcher(); z = 1; shield = explosion_size = 20; z = 1; damage = 50; launch = false; phase = 0;
+}
+
+REGISTER(Launcher);

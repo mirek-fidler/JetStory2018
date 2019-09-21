@@ -1,0 +1,30 @@
+#include "JetStory.h"
+
+struct Whirl : Enemy {
+	virtual void SerializeKind(Stream& s) {}
+	virtual void Do();
+	
+	void Change();
+	
+	Whirl() { shield = 1; damage = 30; Change(); }
+};
+
+void Whirl::Change()
+{
+	speed = Randomf() * Polar(M_2PI * Randomf());
+}
+
+void Whirl::Do()
+{
+	bool b = Move(GetSize(), 0, 0, 0);
+	double d = Distance(pos, startpos);
+	if(b || Random(300) == 0 || d > 500) {
+		if(d > 150 && !b)
+			speed = Randomf() * (startpos - pos) / Distance(startpos, pos);
+		else
+			Change();
+	}
+	image = JetStoryImg::Get(JetStoryImg::I_whirl0 + (((GameTick() + randomize) / 15) & 3));
+}
+
+REGISTER(Whirl);

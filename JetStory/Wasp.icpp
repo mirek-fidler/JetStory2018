@@ -1,0 +1,65 @@
+#include "JetStory.h"
+
+void Wasp::Do()
+{
+	Move(image.GetSize(), 0.9);
+	speed += accel;
+	
+	Pointf ref = homing ? ship.pos : startpos;
+	
+	if(Random(80) == 0)
+		accel = 0.05 * Pointf(Randomf() - 0.5, Randomf() - 0.5);
+	
+	if(Random(100) == 0)
+		homing = distance < 250 || distance < 700 && CanSee();
+	
+	if(abs(speed.x) > 1 && sgn(accel.x) == sgn(speed.x))
+		accel.x = 0;
+	else
+	if(Random(20) == 0) {
+		dir = sgn(ref.x - pos.x);
+		if(Random(20) == 0)
+			dir = Random(2) ? -1 : 1;
+		accel.x = dir * Randomf() * 0.005;
+	}
+	
+	if(speed.y < -0.3)
+		accel.y = 0;
+	if(speed.y > 1)
+		accel.y = -0.005;
+	if(ref.y < pos.y && Random(4) == 0)
+		accel.y = -0.02;
+	
+	image_flags = (dir < 0) * SWAPX;
+	image = JetStoryImg::wasp();
+
+	double sx = speed.x + (pos.x > ship.pos.x ? -1 : 1) * 2;
+	if(sgn(sx) == sgn(dir) && Random(40) == 0 && distance < 800 && abs(ship.pos.y - pos.y) < 60 && sgn(speed.x) == sgn(dir) && CanSee()) {
+		Beep(3, "1046.50:L50V100r-20A95R35:V150D40S0R40B:V80f3r-50W::", 90, Random(200) + 900);
+		WaspMissile& m = enemy.Create<WaspMissile>();
+		m.pos = pos;
+		m.speed = speed;
+		m.speed.x += sx;
+		m.speed.y -= 0.01;
+		m.image_flags = image_flags;
+		m.tick0 = GameTick();
+		NotQuiet();
+	}
+
+	if(distance < 1200) {
+		Debris& d = debris.Add();
+		d.pos = pos;
+		int dr = sgn(-dir);
+		d.pos.x += dr * 8;
+		double dist = 2 * (Randomf() - 0.5);
+		d.pos.y += dist;
+		d.sz = Size(1 + Random(2), 1 + Random(2));
+		d.start = GameTick();
+		d.end = d.start + 5 + Random(max(1, 8 - (int)abs(dist) * 3));
+		d.speed.x = dr;
+		d.speed.y = 0.2 * (Randomf() - 0.5);
+	}
+}
+
+REGISTER(Wasp);
+REGISTER_(WaspMissile);

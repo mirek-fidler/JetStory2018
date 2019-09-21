@@ -1,0 +1,95 @@
+#include "JetStory.h"
+
+struct SparkMissile : Enemy {
+	Pointf basepos;
+	Pointf dir;
+
+	virtual void SerializeKind(Stream& s) { s % basepos % dir; }
+
+	virtual void Do() {
+		basepos += dir;
+		speed += (basepos - pos) * 0.001;
+		if(Move(image.GetSize(), 0, 0, 0) || distance > 1000)
+			shield = 0;
+		else
+		if(Random(5) == 0) {
+			Debris& d = debris.Add();
+			d.pos = pos;
+			d.sz = Size(1, 1);
+			d.start = GameTick();
+			d.end = d.start + 5 + Random(50);
+			d.gravity = 0;
+		}
+	}
+
+	SparkMissile() { image = JetStoryImg::fragment(); Missile(); damage = 7; }
+};
+
+REGISTER_(SparkMissile);
+
+void Spark::Gen()
+{
+	for(int i = 0; i < 12; i++) {
+		xx[i].x = Randomf() / 4;
+		xx[i].y = Randomf() / 4;
+	}
+}
+
+void Spark::Paint(Point sp)
+{
+	Point center(sp.x + 15, sp.y + 2);
+	Sizef sz2 = GetSize() / 2;
+	for(int i = 0; i < sparks; i++) {
+		Point p(center.x + (int)(6 * sin(GameTick() * xx[i].x * M_2PI / 32)),
+		        center.y + (int)(6 * sin(GameTick() * xx[i].y * M_2PI / 32)));
+		DrawImage(p.x, p.y, JetStoryImg::fragment());
+		Debris& d = debris.Add();
+		d.pos = p - sp + pos - sz2;
+		d.sz = Size(1, 1);
+		d.start = GameTick();
+		d.end = d.start + 5 + Random(50);
+		d.gravity = 0;
+	}
+
+	int posx = (int)(10 * sin((((GameTick() + randomize) >> 2) & 31) * M_2PI / 32));
+	int x1 = sp.x + 14 + posx;
+	int x2 = sp.x + 14 - posx;
+	DrawImage(x1, sp.y + 8, JetStoryImg::spark_blue());
+	DrawImage(x2, sp.y + 8, JetStoryImg::spark_red());
+	int x = min(x1, x2);
+	int cx = max(x1, x2) - x;
+	DrawRect(RectC(x + 3, sp.y + 14, cx, 1), LtGray());
+	DrawRect(RectC(x + 3, sp.y + 15, cx, 1), Gray());
+	Enemy::Paint(sp);
+}
+
+void Spark::Do()
+{
+	if((GameTick() & 127) == 0 && sparks < 8)
+		sparks++;
+
+	if(Random(300) == 0 && enemy.GetCount() < ENEMY_LIMIT && distance < 1200 && CanSee()) {
+		Beep(3, "349.23:L50V100r-20A95R38:V90f3:V150D42S0B::A30N", 100, Random(50) + 325);
+		int n = Random(4) + sparks;
+		Pointf dir = Polar(Bearing(ship.pos - pos));
+		for(int i = 0; i < n; i++) {
+			SparkMissile& m = enemy.Create<SparkMissile>();
+			NotQuiet();
+			Pointf p = pos;
+			p.y -= 12;
+			m.basepos = p;
+			m.basepos.y -= 7;
+			m.pos = p + Sizef(Randomf() * 24 - 10, Randomf() * 24 - 10 - 4);
+			m.speed = dir;
+			m.dir = dir;
+		}
+		sparks = 0;
+	}
+}
+
+Spark::Spark()
+{
+	image = JetStoryImg::spark(); shield = explosion_size = explosion_size = 10; z = 1; damage = 50; sparks = 0; Gen();
+}
+
+REGISTER(Spark);

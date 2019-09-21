@@ -1,0 +1,139 @@
+#include "JetStory.h"
+
+Image BigRoto[64];
+
+INITBLOCK {
+	for(int i = 0; i < 64; i++) {
+		Image h = Rotate(JetStoryImg::BigWaspRoto(), 3600 * i / 64);
+		Size isz = h.GetSize();
+		Point c = isz / 2;
+		BigRoto[i] = RescaleFilter(Crop(h, c.x - 50, c.y - 50, 100, 100), 30, 30, FILTER_LANCZOS3);
+	}
+}
+
+enum { PASSIVE, OFFENSIVE, DEFENSIVE, KAMIKADZE };
+
+struct BigWasp : Enemy {
+	Pointf accel = Pointf(0, 0);
+	int    mode = 0;
+
+	virtual void SerializeKind(Stream& s) { s % accel % mode; }
+	virtual void Do();
+	virtual void Paint(Point sp);
+	virtual void Die();
+	
+	BigWasp() { damage = 1000; shield = 1000; explosion_size = 300; explosion_debris = 100; checkpoint = true;
+	            image = JetStoryImg::BigWasp(); }
+};
+
+void BigWasp::Die()
+{
+	StopMusic();
+	StartMusic(TUNE_BASE);
+}
+
+void BigWasp::Paint(Point sp)
+{
+	Enemy::Paint(sp);
+	DrawImage(sp.x + 65, sp.y + 10, BigRoto[AniTick() & 63]);
+	DrawRect(RectC(sp.x + 28, sp.y + 32, 13 * (1000 - shield) / 1000, 4), LtRed());
+}
+
+void BigWasp::Do()
+{
+	if(ship.pos.y > 0 && ship.pos.x > 7280 && mode == PASSIVE) {
+		StartMusic(TUNE_BOSS);
+		mode = OFFENSIVE;
+	}
+	
+	if(mode == PASSIVE)
+		return;
+
+	bool bounce = Move(image.GetSize(), 0, 0, 0);
+	
+	if(ship.pos.x > 7700 && ship.pos.y > 200) {
+		speed = ship.pos - pos;
+		speed = 2 * speed / Length(speed);
+	}
+	else {
+		if(mode == OFFENSIVE) {
+			double d = Distance(pos, Pointf(7908, 171));
+			if(bounce || Random(600) == 0 || d > 200)
+				speed = (0.2 + 0.3 * Randomf()) * Polar(M_2PI * Randomf());
+			if(shield < 400) {
+				mode = DEFENSIVE;
+				Beep(3, "146.83:L1000V100A47R30:V120:V80f0.50A45W:V80:");
+				for(int i = 0; i < 20; i++) {
+					if(enemy.GetCount() < ENEMY_LIMIT) {
+						Wasp& m = enemy.Create<Wasp>();
+						m.pos = Pointf(8050, 920);
+						m.startpos = Pointf(7750, 150);
+						m.speed.y = -2;
+						m.speed.x = 0;
+					}
+				}
+			}
+		}
+		else {
+			if(pos.x < 7980) {
+				speed = Pointf(8000, 340) - pos;
+				speed = speed / Length(speed);
+			}
+			else {
+				if(bounce || Random(200) == 0 || pos.x < 7920 || pos.y > 260)
+					speed = (0.3 + 0.2 * Randomf()) * Polar(M_2PI * Randomf());
+			}
+			if(shield > 800) {
+				mode = OFFENSIVE;
+			}
+		}
+		if(pos.y > 250)
+			speed.y = -2;
+	}
+	
+	if(shield < 1000 && AniTick() % 4 == 0)
+		shield++;
+
+	if(mode == OFFENSIVE && ship.pos.x < pos.x && Random(30) == 0 && distance < 800 && CanSee()) {
+		Beep(3, "1046.50:L50V100r-20A95R35:V150D40S0R40B:V80f3r-50W::", 90, Random(200) + 900);
+		WaspMissile& m = enemy.Create<WaspMissile>();
+		m.pos = pos;
+		m.pos.y += 7;
+		m.speed = speed;
+		m.speed.x -= 3;
+		m.speed.y -= 0.01;
+		m.image_flags = image_flags;
+		m.tick0 = GameTick();
+		NotQuiet();
+	}
+
+	if(mode == DEFENSIVE && distance < 1000 && abs(ship.pos.y - pos.y) < 160 && AniTick() % 600 == 0) {
+		Beep(3, "261.62:L50V100A80R30:V100B:V120D50S0N::", 100, Random(50) + 325);
+		Pointf p = pos + Sizef(4 - 32, 57 - 32);
+		FireFireWork(p, 1.5);
+		FireFireWork(p, 1.5);
+		FireFireWork(p, 1.5);
+	}
+/*
+	if(distance < 1200) {
+		for(int i = 0; i < 5; i++) {
+			Debris& d = debris.Add();
+			d.pos = pos;
+			int dr = sgn(-dir);
+			d.pos.x += dr * 20;
+			double dist = 12 * (Randomf() - 0.5);
+			d.pos.y += dist;
+			d.sz = Size(1 + Random(2), 1 + Random(2));
+			d.start = GameTick();
+			d.end = d.start + 8 + Random(max(1, 10 - (int)abs(dist)));
+			d.speed.x = 2 * dr;
+			d.speed.y = 0.2 * (Randomf() - 0.5);
+			d.c1 = LtCyan;
+			d.c2 = LtGreen;
+		}
+	}
+*/
+}
+
+
+REGISTER(BigWasp);

@@ -1,0 +1,39 @@
+#include "JetStory.h"
+
+struct BomberBomb : Enemy {
+	int tick0;
+
+	virtual void SerializeKind(Stream& s) { s % tick0; }
+
+	virtual void Do() {
+		bool b = Move();
+		if(b || distance > 2000 || GameTick() - tick0 > 2000) {
+			shield = 0;
+			if(b)
+				Explosion(pos, 20);
+		}
+		image = JetStoryImg::Get(JetStoryImg::I_bomb0 + ((GameTick() / 20) & 3));
+	};
+	BomberBomb() {
+		image = JetStoryImg::bomb0(); shield = 10; damage = 40;
+	}
+};
+
+REGISTER_(BomberBomb);
+
+struct Bomber : Enemy {
+	virtual void SerializeKind(Stream& s) {}
+	virtual void Do() {
+		if(ship.pos.y > pos.y && distance < 500 && abs(ship.pos.x - pos.x) < distance && Random(150) == 0 && CanSee()) {
+			Beep(3, "130.81:L200V100r-1A50R35:V100B:V80f7D40S0N:V100f8:", 90);
+			BomberBomb& m = enemy.Create<BomberBomb>();
+			m.pos = pos;
+			m.pos.y += 8;
+			m.tick0 = GameTick();
+			NotQuiet();
+		}
+	}
+	Bomber() { image = JetStoryImg::Bomber(); z = 1; explosion_size = 50; damage = 70; shield = 5; }
+};
+
+REGISTER(Bomber);

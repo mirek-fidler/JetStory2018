@@ -1,0 +1,61 @@
+#include "JetStory.h"
+
+struct EnergyMissile : Enemy {
+	Pointf basepos;
+	Pointf basespeed;
+
+	virtual void SerializeKind(Stream& s) { s % basepos % basespeed; }
+
+	virtual void Do() {
+		basepos += basespeed;
+		speed += (basepos - pos) * 0.001;
+		if(Move(image.GetSize(), 0, 0, 0) || distance > 1000)
+			shield = 0;
+		else
+		if(Random(10) == 0) {
+			Debris& d = debris.Add();
+			d.pos = pos;
+			d.sz = Size(1, 1);
+			d.start = GameTick();
+			d.end = d.start + 12 + Random(100);
+			d.gravity = 0;
+			d.c1 = LtGreen();
+			d.c2 = Blue();
+		}
+	}
+
+	EnergyMissile() { image = JetStoryImg::greendot(); Missile(); damage = 7; }
+};
+
+REGISTER_(EnergyMissile);
+
+void Projector::Do()
+{
+	if(lr && Random(200) == 0)
+		image_flags = (pos.x > ship.pos.x) * SWAPX;
+	if(Random(700) == 0 && enemy.GetCount() < ENEMY_LIMIT && Distance(ship.pos, pos) < 1200) {
+		Beep(2, "261.62:L100V100A60R40:V90f7r5D50S0:V120f3A90D30S0:V100f50r-10:V100f50", 70, Random(10) + 255);
+		int n = Random(6) + 6;
+		for(int i = 0; i < n; i++) {
+			EnergyMissile& m = enemy.Create<EnergyMissile>();
+			m.basepos = pos;
+			m.pos = m.basepos;
+			m.basespeed = Pointf(image_flags & SWAPX ? -0.4 : 0.4, 0) + 0.06 * Pointf(Randomf() - 0.5, Randomf() - 0.5);
+			m.speed = m.basespeed;
+			m.speed.y += 0.13 * (Randomf() - 0.5);
+		}
+	}
+}
+
+Projector::Projector()
+{
+	image = JetStoryImg::projector(); shield = explosion_size = 10; z = 1; damage = 40;
+}
+
+REGISTER(Projector);
+
+struct ProjectorL : Projector {
+	ProjectorL() { image_flags = SWAPX; }
+};
+
+REGISTER(ProjectorL);

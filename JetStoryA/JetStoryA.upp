@@ -1,0 +1,70 @@
+uses
+	Core,
+	GLDraw,
+	Synth,
+	VirtualGui/SDL2GL,
+	plugin/jpg;
+
+library(WIN32) "SDL2.lib SDL2main.lib OpenGL32.lib";
+
+library(POSIX) "SDL2 GL GLU";
+
+file
+	JetStory.h,
+	Blocks.iml,
+	Gt.iml,
+	JetStory.iml,
+	Other.iml,
+	JsCtrls.iml,
+	data.i,
+	map.i,
+	bin.brc,
+	icon.rc,
+	map.cpp,
+	Beautify.cpp,
+	Flame.cpp,
+	Draw.cpp,
+	Sound.cpp,
+	Object.cpp,
+	Boom.cpp,
+	Data.cpp,
+	Enemy.cpp,
+	Ball.cpp,
+	Wasp.icpp,
+	BigWasp.icpp,
+	Base.icpp,
+	Pacman.icpp,
+	Projector.icpp,
+	Spark.icpp,
+	Bomber.icpp,
+	Rocket.icpp,
+	Whirl.icpp,
+	Alien.icpp,
+	Eye.icpp,
+	FireWork.icpp,
+	Launcher.icpp,
+	Pair.icpp,
+	PowerUp.icpp,
+	Head.icpp,
+	PaintScene.cpp,
+	Training.cpp,
+	GT.cpp,
+	Cursor.cpp,
+	Design.cpp,
+	DesignMap.cpp,
+	Controller.cpp,
+	Game.cpp,
+	Tunes.cpp,
+	Credits.cpp,
+	Gui.cpp,
+	Win.cpp,
+	JetStory.cpp,
+	app.tpp;
+
+mainconfig
+	"" = "GUI DEVEL VIRTUALGUI",
+	"" = "GUI",
+	"" = "GUI DEVEL VIRTUALGUI TRAINING",
+	"" = "GUI SS",
+	"" = "GUI DEVEL VIRTUALGUI WIN";
+

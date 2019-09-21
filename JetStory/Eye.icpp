@@ -1,0 +1,130 @@
+#include "JetStory.h"
+
+struct EyeMissile2 : Enemy {
+	virtual void SerializeKind(Stream& s) {}
+	virtual void Do() {
+		if(Move() || distance > 1500 || Random(150) == 0)
+			shield = 0;
+		if(Random(5) == 0) {
+			Debris& d = debris.Add();
+			d.c1 = LtCyan();
+			d.c2 = Gray();
+			d.pos = pos;
+			d.sz = Size(1, 1);
+			d.start = GameTick();
+			d.end = d.start + 3 + Random(50);
+			d.gravity = 0;
+		}
+	}
+
+	EyeMissile2() { image = JetStoryImg::eye_missile2(); Missile(); damage = 7; }
+};
+
+REGISTER_(EyeMissile2);
+
+struct EyeMissile : Enemy {
+	int tick0;
+
+	virtual void SerializeKind(Stream& s) { s % tick0; }
+	virtual void Do() {
+		Pointf spd = speed;
+		bool bounce = Move(image.GetSize(), 0, 0, 0.001);
+		if(bounce || distance > 2000 || GameTick() - tick0 > 1200) {
+			shield = 0;
+			Beep(0, "261.62:L20V85r20A70R40W:V100A50N:V120f2::", 100, Random(50) + 230);
+			if(bounce) {
+				int n = Random(30) + 30;
+				while(n--) {
+					EyeMissile2& m = enemy.Create<EyeMissile2>();
+					m.pos = pos;
+					m.speed = 2 * Pointf(Randomf() - 0.5, Randomf() - 0.5) + spd / 2;
+					NotQuiet();
+				}
+			}
+			shield = 0;
+		}
+		if(Random(5) == 0) {
+			Debris& d = debris.Add();
+			d.c1 = LtCyan();
+			d.c2 = Gray();
+			d.pos = pos;
+			d.sz = Size(1, 1);
+			d.start = GameTick();
+			d.end = d.start + 3 + Random(50);
+			d.gravity = 0;
+		}
+	}
+
+	EyeMissile() { image = JetStoryImg::eye_missile(); Missile(); damage = 20; }
+};
+
+REGISTER_(EyeMissile);
+
+struct Eye : Enemy {
+	int ani;
+	int flash;
+	int dummy;
+
+	virtual void SerializeKind(Stream& s) { s % ani % flash % dummy; }
+	virtual void Do();
+	virtual void Paint(Point sp) {
+		Enemy::Paint(sp);
+		if(flash)
+			DrawImage(sp.x, sp.y, flash / 100.0f, JetStoryImg::eye3(), image_flags);
+	}
+	
+	void Change();
+	
+	Eye() { shield = 12; damage = 80; Change(); global = true; ani = flash = 0; }
+};
+
+void Eye::Change()
+{
+	speed.x = Random(2) ? -1 : 1;
+}
+
+void Eye::Do()
+{
+	bool b = Move(GetSize(), 1, 1);
+	if(b) {
+		if(last_bounce.y > 0)
+			speed.y = 0;
+		else {
+			if(abs(last_bounce.x) < 0.05 && last_bounce.y <= 0) {
+				if(last_bounce.y < -0.2)
+					Beep(0, "261.62:L50V80r-50A90R50T:L20V120R60B::V80:", 80, Random(60) + 230);
+				ani = 2;
+				if(Random(100) == 0 || pos.x < -10 * BLOCKSIZE || pos.x > (MAPX + 10) * BLOCKSIZE)
+					Change();
+				speed.y = clamp(speed.y, -2.0, -0.1);
+			}
+			
+			if(abs(speed.y) < 0.01)
+				speed.y = -0.5;
+		}
+	}
+	if(abs(speed.x) < 0.9)
+		Change();
+	if(abs(speed.y) < 0.5 && Random(100) == 0 && ani == 0 && distance < 800) {
+		flash = 100;
+		Beep(3, "261.62:L200V100r-20A90D50S50R40:V120:V100D60S0N::", 90, Random(20) + 250);
+		EyeMissile& m = enemy.Create<EyeMissile>();
+		m.pos = pos;
+		m.pos.y -= 5;
+		m.speed = speed;
+		m.speed.x *= 2;
+		m.speed.y -= 0.3;
+		m.image_flags = image_flags;
+		m.tick0 = GameTick();
+		NotQuiet();
+	}
+	double d = Distance(pos, startpos);
+	image = JetStoryImg::Get(JetStoryImg::I_eye0 + ani);
+	if(ani && GameTick() % 50 == 0)
+		ani--;
+	if(flash)
+		flash--;
+	image_flags = (speed.x > 0) * SWAPX;
+}
+
+REGISTER(Eye);

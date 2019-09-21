@@ -1,0 +1,84 @@
+#include "JetStory.h"
+
+struct EnergyPowerUp : Enemy {
+	virtual void SerializeKind(Stream& s) {}
+	virtual void Paint(Point sp) {
+		Enemy::Paint(sp);
+		DrawImage(sp.x, sp.y, (AniTick() & 127) / 127.0f, JetStoryImg::powerup_highlight());
+	}
+
+	virtual void Do() {}
+	EnergyPowerUp() { image = JetStoryImg::powerup_energy(); damage = POWERUP_ENERGY; z = 1; }
+};
+
+REGISTER(EnergyPowerUp);
+
+struct FuelPowerUp : EnergyPowerUp {
+	FuelPowerUp() { image = JetStoryImg::powerup_fuel(); damage = POWERUP_FUEL; }
+};
+
+REGISTER(FuelPowerUp);
+
+struct AmmoPowerUp : EnergyPowerUp {
+	AmmoPowerUp() { image = JetStoryImg::powerup_ammo(); damage = POWERUP_AMMO; }
+};
+
+REGISTER(AmmoPowerUp);
+
+struct RocketsPowerUp : EnergyPowerUp {
+	RocketsPowerUp() { image = JetStoryImg::powerup_rockets(); damage = POWERUP_ROCKETS; }
+};
+
+REGISTER(RocketsPowerUp);
+
+struct BombsPowerUp : EnergyPowerUp {
+	BombsPowerUp() { image = JetStoryImg::powerup_bombs(); damage = POWERUP_BOMBS; }
+};
+
+REGISTER(BombsPowerUp);
+
+#define STARS
+#define SPEED 3
+
+struct CheckPoint : Enemy {
+	struct Star : Moveable<Star, Point> {
+		int tm0;
+	};
+	Vector<Star> stars;
+	virtual void SerializeKind(Stream& s) {}
+	virtual void Paint(Point sp) {
+		if(design_mode)
+			Enemy::Paint(sp);
+#ifdef STARS
+		for(Star& s : stars) {
+			int t = SPEED * (GameTick() - s.tm0);
+			Point p = (Point)s + sp;
+			int l = (t < 128 ? t : 255 - t) >> 5;
+			DrawRect(RectC(p.x - l, p.y, 2 * l + 1, 1), Green());
+			DrawRect(RectC(p.x, p.y - l, 1, 2 * l + 1), Green());
+		}
+#endif
+	}
+	virtual void Do() {
+#ifdef STARS
+		int n = Random(2);
+		while(n--)
+			if(stars.GetCount() < 200) {
+				Star& s = stars.Add();
+				Size sz = GetSize();
+				s.x = Random(sz.cx);
+				s.y = Random(sz.cy);
+				s.tm0 = GameTick();
+			}
+		Vector<int> done;
+		for(int i = 0; i < stars.GetCount(); i++)
+			if(SPEED * (GameTick() - stars[i].tm0) > 255)
+				done.Add(i);
+		stars.Remove(done);
+#endif
+	}
+
+	CheckPoint() { image = JetStoryImg::checkpoint(); damage = CHECKPOINT; }
+};
+
+REGISTER(CheckPoint);

@@ -1,0 +1,26 @@
+#include "JetStory.h"
+
+void Base::Die()
+{
+	StartMusic(TUNE_BASE);
+}
+
+void Base::Do()
+{
+	base_count++;
+	Move(image.GetSize(), 0);
+}
+
+Base::Base()
+{
+	image = JetStoryImg::Base();
+	shield = 50;
+	z = 1;
+	damage = 120;
+	explosion_size = 150;
+	explosion_debris = 20;
+	global = true;
+}
+
+
+REGISTER(Base);

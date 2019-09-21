@@ -1,0 +1,41 @@
+#include "JetStory.h"
+
+struct Rocket : Enemy {
+	int  dir = 1;
+	int  tick0;
+	bool run = false;
+
+	virtual void SerializeKind(Stream& s) { s % dir % tick0 % run; }
+
+	virtual void Do() {
+		if(run) {
+			speed.x += 0.02 * dir;
+			speed.y -= 0.02;
+			bool b = Move();
+			if(b || distance > 2000 || GameTick() - tick0 > 2000) {
+				shield = 0;
+				if(b)
+					Explosion(pos, 20);
+			}
+		}
+		else
+		if(ship.pos.y < pos.y && distance < 700 && abs(pos.x - ship.pos.x - dir * (ship.pos.y - pos.y)) < 80 &&
+		   Random(60/*max((int)distance, 40) / 4*/) == 0 && CanSee()) {
+			Beep(3, "698.45:L300V100A90R38:V120B:V140D70S0N::");
+			image = JetStoryImg::rocket1();
+			run = true;
+			tick0 = GameTick();
+			speed.y = 0;
+			pos.y--;
+		}
+	}
+	Rocket() { image = JetStoryImg::rocket2(); z = 1; explosion_size = 50; damage = 80; shield = 6; }
+};
+
+REGISTER(Rocket);
+
+struct RocketL : Rocket {
+	RocketL() { dir = -1; image_flags = SWAPX; }
+};
+
+REGISTER(RocketL);

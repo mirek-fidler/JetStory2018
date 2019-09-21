@@ -1,0 +1,43 @@
+#include "JetStory.h"
+
+struct Alien : Enemy {
+	virtual void SerializeKind(Stream& s) {}
+	virtual void Do();
+	
+	void Change();
+	
+	Alien() { shield = 3; damage = 30; Change(); }
+};
+
+void Alien::Change()
+{
+	speed = (Randomf() + 0.2) * Polar(M_2PI * Randomf());
+}
+
+void Alien::Do()
+{
+	bool b = Move(GetSize(), 0, 0, 0);
+	double d = Distance(pos, startpos);
+	if(b || d > 500 || Random(4000) == 0) {
+		if(d > 150 && !b)
+			speed = 2 * Randomf() * (startpos - pos) / Distance(startpos, pos);
+		else
+			Change();
+	}
+	image = JetStoryImg::Get(JetStoryImg::I_alien0 + ((AniTick() / 12) & 3));
+
+	if(distance < 1200) {
+		Debris& d = debris.Add();
+		d.pos = pos;
+		d.pos.y += 6;
+		double dist = 4 * (Randomf() - 0.5);
+		d.pos.x += dist;
+		d.sz = Size(1 + Random(2), 1 + Random(2));
+		d.start = GameTick();
+		d.end = d.start + 5 + Random(max(1, 10 - (int)abs(dist)));
+		d.speed.y = 1;
+		d.speed.x = 0.2 * (Randomf() - 0.5);
+	}
+}
+
+REGISTER(Alien);

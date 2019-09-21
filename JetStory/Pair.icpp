@@ -1,0 +1,104 @@
+#include "JetStory.h"
+
+template <class T>
+struct Platform : Enemy {
+	virtual Size GetSize() const;
+	virtual void Paint(Point sp);
+	virtual void Do();
+	
+	T other;
+
+	virtual void SerializeKind(Stream& s) { other.Serialize(s); other.SerializeKind(s); }
+	
+	void Change();
+	
+	Platform() { shield = 8; damage = 40; Change(); image = JetStoryImg::platform(); }
+};
+
+template <class T>
+Size Platform<T>::GetSize() const
+{
+	Size sz1 = Enemy::GetSize();
+	Size sz2 = other.GetSize();
+	return Size(max(sz1.cx, sz2.cx), sz1.cy + sz2.cy);
+}
+
+template <class T>
+void Platform<T>::Paint(Point sp)
+{
+	Size sz = GetSize();
+	Size sz1 = Enemy::GetSize();
+	Size sz2 = other.GetSize();
+	other.Paint(Point(sp.x + (sz.cx - sz2.cx) / 2, sp.y));
+	Enemy::Paint(Point(sp.x + (sz.cx - sz1.cx) / 2, sp.y + sz2.cy));
+}
+
+template <class T>
+void Platform<T>::Change()
+{
+	speed = 0.5 * Randomf() * Polar(M_2PI * Randomf());
+}
+
+template <class T>
+void Platform<T>::Do()
+{
+	bool b = Move(GetSize(), 0, 0, 0);
+	double d = Distance(pos, startpos);
+	if(b || Random(300) == 0 || d > 500) {
+		if(d > 150 && !b)
+			speed = Randomf() * (startpos - pos) / Distance(startpos, pos);
+		else
+			Change();
+	}
+	other.Do();
+	other.pos = pos;
+	other.distance = distance;
+
+	Size sz = GetSize();
+	Size sz1 = Enemy::GetSize();
+	Size sz2 = other.GetSize();
+
+	other.pos.y -= (sz.cy - sz1.cy) / 2;
+
+	if(distance < 1200) {
+		int n = Random(10);
+		for(int i = 0; i < n; i++) {
+			Debris& d = debris.Add();
+			d.pos = pos;
+			d.pos.y += 32;
+			double dist = 16 * (Randomf() - 0.5);
+			d.pos.x += dist;
+			d.sz = Size(1 + Random(2), 1 + Random(2));
+			d.start = GameTick();
+			d.end = d.start + 5 + Random(max(1, 25 - (int)abs(dist) * 3));
+			d.speed.y = 1;
+			d.speed.x = 0.2 * (Randomf() - 0.5);
+		}
+	}
+}
+
+typedef Platform<Spark> SparkPlatform;
+
+REGISTER(SparkPlatform);
+
+typedef Platform<FireWork> FireWorkPlatform;
+
+REGISTER(FireWorkPlatform);
+
+struct ProjectorLR : Projector { ProjectorLR() { lr = true; }};
+
+typedef Platform<ProjectorLR> ProjectorPlatform;
+
+REGISTER(ProjectorPlatform);
+
+struct BasePlatform : Platform<Base> {
+	virtual void Die() { StartMusic(TUNE_BASE); }
+
+	BasePlatform() {
+		global = true;
+		explosion_size = 150;
+		explosion_debris = 20;
+	}
+};
+
+REGISTER(BasePlatform);

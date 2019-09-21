@@ -1,0 +1,178 @@
+#include "JetStory.h"
+
+struct LetterMissile : Enemy {
+	Pointf ep;
+
+	virtual void SerializeKind(Stream& s) { s % ep; }
+
+	virtual void Do() {
+		if(Move(GetSize(), 0, 0, 0) || distance > 1500) {
+			shield = 0;
+			int n = 20 + Random(20);
+			while(n--) {
+				Debris& d = debris.Add();
+				d.c1 = White();
+				d.c2 = Black();
+				d.pos = pos;
+				d.sz = Size(Random(2) + 1, Random(2) + 1);
+				d.speed = Pointf(Randomf() - 0.5, Randomf() - 0.5);
+				d.start = GameTick();
+				d.end = d.start + 12 + Random(50);
+				d.gravity = 0;
+			}
+		}
+	}
+
+	LetterMissile() { Missile(); damage = 20; z = 1; }
+};
+
+REGISTER_(LetterMissile);
+
+struct Head : Enemy {
+	virtual void Do();
+	virtual void Paint(Point sp);
+	
+	String talking;
+	int    talkpos = 0;
+	double bearing;
+	Pointf mspeed;
+
+	virtual void SerializeKind(Stream& s) { s % talking % talkpos % bearing % mspeed; }
+	virtual void Die()                    { StopMusic(); StartMusic(TUNE_BASE); }
+
+	Head();
+};
+
+void Head::Paint(Point sp)
+{
+	Size isz = JetStoryImg::headeye().GetSize() / 2;
+	auto eye = [&](int x, int y) {
+		Pointf xy(x, y);
+		Pointf p = (Pointf)sp + xy;
+		p += 3 * Polar(Bearing(ship.pos - pos));
+		DrawImage((int)p.x - isz.cx, (int)p.y - isz.cy, JetStoryImg::headeye());
+	};
+	eye(22, 24);
+	eye(42, 24);
+	if(shield < 600) {
+		Size hsz = JetStoryImg::HeadJet().GetSize();
+		isz = image.GetSize();
+		DrawImage(sp.x + (isz.cx - hsz.cx) / 2, sp.y + isz.cy - 1, JetStoryImg::HeadJet());
+	}
+	Enemy::Paint(sp);
+}
+
+namespace Upp {
+Image RenderGlyphByPainter(Point at, int angle, int chr, Font fnt, Color color, Size sz);
+};
+
+struct HeadFire : Enemy {
+	int tick0;
+
+	virtual void SerializeKind(Stream& s) { s % tick0; }
+
+	virtual void Do() {
+		if(Move(image.GetSize(), 0, 0, 0))
+			shield = 0;
+	}
+
+	HeadFire() { image = JetStoryImg::headfire(); Missile(); damage = 100; }
+};
+
+void Head::Do()
+{
+	if(shield < 600) {
+		speed.y -= 0.006;
+		speed.x = clamp(speed.x + 0.01 * sgn(ship.pos.x - pos.x), -0.5, 0.5);
+
+		int n = Random(20) + 10;
+		for(int i = 0; i < n; i++) {
+			Debris& d = debris.Add();
+			d.pos = pos;
+			d.pos.y += 40;
+			double dist = 10 * (Randomf() - 0.5);
+			d.pos.x += dist;
+			d.sz = Size(1 + Random(2), 1 + Random(2));
+			d.start = GameTick();
+			d.end = d.start + 5 + Random(max(1, 25 - (int)abs(dist) * 3));
+			d.speed.y = 1;
+			d.speed.x = 0.2 * (Randomf() - 0.5);
+		}
+	}
+	Move(image.GetSize());
+	pos.y = max(pos.y, 850.0);
+	
+	static bool music;
+	
+	if(!music && ship.pos.x > 0 && ship.pos.x < 144 && ship.pos.y > 1346) {
+		music = true;
+		StartMusic(TUNE_BOSS);
+		NotQuiet();
+	}
+	
+	if(!talking[talkpos] && enemy.GetCount() < ENEMY_LIMIT && distance < 1200 && CanSee()) {
+		static const char *phrase[] = {
+			"ALL YOUR BASE ARE BELONG TO US",
+			"YOU ARE ON THE WAY TO DESTRUCTION",
+			"YOU HAVE NO CHANCE TO SURVIVE MAKE YOUR TIME",
+			"DROP YOUR SHIELDS RESISTANCE IS FUTILE",
+			"YOU’RE GONNA NEED A BIGGER SHIP",
+			"I LOVE THE SMELL OF NAPALM IN THE MORNING",
+			"YOU DAMN DIRTY APE",
+			"GO AHEAD MAKE MY DAY",
+			"DO YOU FEEL LUCKY PUNK?",
+			"BAZINGA",
+			"DID I DO THAT?",
+			"KISS MY GRITS",
+			"NO SOUP FOR YOU",
+			"SLEZTE Z TOHO LUSTRU DONALDE VIDIM VAS",
+		};
+		talking = String(' ', 1) + phrase[Random(__countof(phrase))] + String(' ', 5);
+		talkpos = 0;
+		bearing = Bearing(ship.pos + 60 * Pointf(Randomf() - 0.5, Randomf() - 0.5) - pos);
+		mspeed = Polar(bearing);
+	}
+	
+	if(AniTick(17) && talking[talkpos]) {
+		int chr = talking[talkpos++];
+
+		Beep(3, "261.62:L50V100r20A90R45:V120:::", 80, (chr - 32) * 10);
+
+		Font font = Roman(15).Bold();
+		Point at(2 * font[chr], 2 * font.GetLineHeight());
+		int n = 4 * (at.x + at.y);
+
+		LetterMissile& m = enemy.Create<LetterMissile>();
+		m.pos = pos;
+		m.pos.y += 15;
+		m.speed = mspeed + speed;
+		Image h = RenderGlyphByPainter(at, (int)(-bearing * 3600 / M_2PI) + 1800, chr, font, White, Size(n, n));
+		m.image = AutoCrop(h, RGBAZero());
+		NotQuiet();
+	}
+	
+	if(abs(pos.y - ship.pos.y) < 120 && Random(3) == 0 && CanSee())
+		for(int pass = 0; pass < 2; pass++) {
+			Beep(1, "1046.50:L50V100r-100R50:V80f3.14:V150D60S0N::", 90, 600 + Random(200));
+
+			HeadFire& m = enemy.Create<HeadFire>();
+			m.pos = pos;
+			m.pos.y -= 4;
+			m.pos.x += pass ? 35 : -35;
+			m.speed.y = 0;
+			m.tick0 = GameTick();
+			m.speed.x = pass ? 5 : -5;
+			m.speed += speed;
+			NotQuiet();
+		}
+}
+
+Head::Head()
+{
+	image = JetStoryImg::Head();
+	damage = 1000; shield = 1000; explosion_size = 300; explosion_debris = 100;
+	checkpoint = true;
+}
+
+
+REGISTER(Head);
