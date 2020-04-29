@@ -7,6 +7,10 @@ uses
 
 library(POSIX) "SDL2 GL GLU";
 
+library(WIN32) "SDL2.lib SDL2main.lib";
+
+library(CLANG) "glu32 opengl32";
+
 file
 	JetStory.h,
 	Blocks.iml,
